@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ultimate Podcast Importer Plugin Documentation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      margin: 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1, h2, h3, h4 {
+      color: #222;
+    }
+    h1 {
+      border-bottom: 2px solid #0073aa;
+      padding-bottom: 10px;
+    }
+    pre, code {
+      font-family: "Courier New", monospace;
+      background: #eee;
+      padding: 5px;
+      border-radius: 3px;
+      overflow-x: auto;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .file-block {
+      border: 1px solid #ddd;
+      background: #fff;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 4px;
+    }
+    .file-block h4 {
+      background: #0073aa;
+      color: #fff;
+      padding: 8px;
+      margin: -15px -15px 10px -15px;
+      border-top-left-radius: 4px;
+      border-top-right-radius: 4px;
+    }
+    .component {
+      margin: 10px 0;
+    }
+    .component p {
+      margin: 4px 0;
+    }
+    .prompt {
+      background: #272822;
+      color: #333;
+      padding: 10px;
+      border-radius: 3px;
+      overflow-x: auto;
+      font-size: 0.9em;
+    }
+    .nav {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px 15px;
+      border-radius: 3px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    .nav a {
+      display: block;
+      margin: 5px 0;
+      text-decoration: none;
+      color: #0073aa;
+    }
+  </style>
+  <script>
+    // Enable smooth scroll for navigation links.
+    document.addEventListener('DOMContentLoaded', function() {
+      var navLinks = document.querySelectorAll('.nav a');
+      navLinks.forEach(function(link){
+        link.addEventListener('click', function(e){
+          e.preventDefault();
+          var targetId = this.getAttribute('href').slice(1);
+          var target = document.getElementById(targetId);
+          if(target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      });
+    });
+  </script>
+</head>
+<body>
+
+  <div class="nav">
+    <strong>Navigation</strong>
+    <a href="#overview">Overview</a>
+    <a href="#directory">Directory Structure</a>
+    <a href="#files">Files &amp; Functions</a>
+    <a href="#xml">XML Structure</a>
+    <a href="#prompt">Development Prompt</a>
+    <a href="#notes">Additional Notes</a>
+  </div>
+
+  <h1>Ultimate Podcast Importer Plugin Documentation</h1>
+
+  <!-- Overview Section -->
+  <div class="section" id="overview">
+    <h2>Overview</h2>
+    <p>The Ultimate Podcast Importer plugin is designed to convert podcast episodes from an RSS feed (such as one provided by Transistor) into standard WordPress posts. It automates both the initial import and, if enabled, periodic updates. Key features include:</p>
+    <ul>
+      <li><strong>Feed Importing:</strong> Extracts title, audio, description, publication date, and more from the RSS feed.</li>
+      <li><strong>Audio Embedding:</strong> Automatically embeds the audio file at the top of each post using the <code>[audio]</code> shortcode.</li>
+      <li><strong>Featured Images:</strong> Downloads and sets featured images from the <code>&lt;itunes:image&gt;</code> tag using its <code>href</code> attribute.</li>
+      <li><strong>Category Mapping:</strong> Uses the first two keywords from <code>&lt;itunes:keywords&gt;</code> along with a selectable default category.</li>
+      <li><strong>Author Selection:</strong> Allows the admin to assign imported posts to a specific WordPress author via a dropdown.</li>
+      <li><strong>AJAX-Based Import &amp; Progress:</strong> Processes feed items in chunks to avoid PHP timeouts and shows a visual progress bar.</li>
+      <li><strong>Feed Management:</strong> Provides an admin interface for adding, editing, and deleting feeds along with detailed statistics.</li>
+      <li><strong>Auto-Update:</strong> Optionally, automatically checks and updates imported posts if changes are detected on the source feed.</li>
+      <li><strong>Logging:</strong> Logs import and update events to a file (<code>tpi.log</code>) for troubleshooting.</li>
+      <li><strong>Uninstallation:</strong> Cleans up plugin settings and logs upon uninstall while leaving imported posts intact.</li>
+    </ul>
+  </div>
+
+  <!-- Directory Structure Section -->
+  <div class="section" id="directory">
+    <h2>Directory Structure</h2>
+    <pre>
+ultimate-podcast-importer/
+├── assets/
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── script.js
+├── includes/
+│   ├── admin-menu.php
+│   ├── feed-importer.php
+│   ├── feed-functions.php
+│   └── settings.php
+├── logs/
+│   └── tpi.log   (created automatically)
+├── templates/
+│   ├── add-feed.php
+│   ├── edit-feed.php
+│   ├── feed-table.php
+│   ├── help.php
+│   └── logs.php
+├── uninstall.php
+└── ultimate-podcast-importer.php
+    </pre>
+    <p>Feed settings and statistics are stored as a serialized array in the <code>wp_options</code> table (option key: <code>tpi_feeds</code>). Imported posts use the standard WordPress tables (<code>wp_posts</code> and <code>wp_postmeta</code>).</p>
+  </div>
+
+  <!-- Files & Functions Section -->
+  <div class="section" id="files">
+    <h2>Files &amp; Functions</h2>
+
+    <div class="file-block">
+      <h4>ultimate-podcast-importer.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> This is the main plugin file. It:</p>
+        <ul>
+          <li>Defines plugin metadata and constants (such as directory paths, option keys, and log file path).</li>
+          <li>Ensures necessary folders (e.g., logs) exist.</li>
+          <li>Includes other PHP files (admin menu, feed importer, utility functions, settings).</li>
+          <li>Enqueues admin CSS/JS and localizes AJAX variables (nonce and ajaxurl).</li>
+          <li>Registers activation/deactivation hooks and schedules a cron job (<code>tpi_hourly_import</code>).</li>
+          <li>Contains a cron callback that triggers both auto-import and auto-update processes.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>includes/admin-menu.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Manages the admin interface. It:</p>
+        <ul>
+          <li>Registers the top-level admin menu page.</li>
+          <li>Renders the main admin page with navigation tabs for Add Feed, Manage Feeds, Logs, and Help.</li>
+          <li>Handles feed deletion and triggers the appropriate template file based on the selected tab.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>includes/feed-importer.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Contains the core logic for importing and updating feeds. Key functions include:</p>
+        <ul>
+          <li><code>tpi_process_feed()</code>: Fetches, parses, and processes the entire RSS feed, filtering items by the import date and updating feed statistics.</li>
+          <li><code>tpi_process_item()</code>: Processes a single feed item—checking for duplicates, creating the post (with audio embedding), downloading &amp; setting the featured image, and mapping categories.</li>
+          <li><code>tpi_import_feed_ajax()</code>: An AJAX handler that saves feed settings and returns a unique feed ID.</li>
+          <li><code>tpi_import_feed_progress()</code>: An AJAX handler that processes feed items in chunks for a progress bar.</li>
+          <li><code>tpi_update_feed_items()</code>: Checks if the feed has been modified (using HTTP <code>Last-Modified</code> header or <code>&lt;lastBuildDate&gt;</code> fallback) and, if changed, compares each eligible item with the corresponding WordPress post. It updates posts if differences (title, content, audio source, categories, featured image) are detected.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>includes/feed-functions.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Provides utility functions used throughout the plugin, including:</p>
+        <ul>
+          <li><code>tpi_log()</code>: Logs import, update, and error events to <code>tpi.log</code> and the PHP error log.</li>
+          <li><code>tpi_build_popup_message()</code>: Constructs a summary HTML popup displaying the import result (with a green tick, import type, and counts) after an import completes.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>includes/settings.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Reserved for future global settings or configuration options for the plugin.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>templates/add-feed.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Contains the Add Feed form. It lets admins:</p>
+        <ul>
+          <li>Enter the RSS feed URL and an optional import date to filter older posts.</li>
+          <li>Select the post status (published or draft), default category (from a dropdown), and author (from a dropdown).</li>
+          <li>Enable ongoing import and set the auto-fetch interval.</li>
+          <li>Choose whether to auto-update imported posts if changes are detected on Transistor (<strong>Auto Update</strong> checkbox).</li>
+          <li>The form is submitted via AJAX, which then displays a progress bar and a summary popup upon completion.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>templates/feed-table.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Displays all added feeds in a table within the Manage Feeds tab. The table includes:</p>
+        <ul>
+          <li>Feed URL, post status, ongoing import status, default category, and auto-fetch interval.</li>
+          <li>Last imported time (manual import), last auto-fetched time, and counts of posts imported (both first time and auto-fetched).</li>
+          <li>Links for editing and deleting feeds (with confirmation prompts).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>templates/edit-feed.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Similar to the Add Feed template but used for editing existing feed settings. It contains the same fields as the Add Feed form, including the Auto Update checkbox.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>templates/logs.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Displays the plugin log (<code>tpi.log</code>) in a scrollable textarea for troubleshooting. It also provides a link to clear the log.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>templates/help.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Offers comprehensive documentation for developers and users. It explains all plugin features, configuration options, and the overall workflow of import, auto-update, and logging.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>assets/css/style.css</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Provides CSS styling for the plugin’s admin UI, including layout, navigation tabs, form elements, progress bar, and other visual components.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>assets/js/script.js</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Contains JavaScript that handles the AJAX form submission, processes feed items in chunks, updates the progress bar in real time, and displays the final summary popup of import results.</p>
+      </div>
+    </div>
+
+    <div class="file-block">
+      <h4>uninstall.php</h4>
+      <div class="component">
+        <p><strong>Purpose:</strong> Executes the uninstallation routine. When the plugin is uninstalled, this file removes the plugin settings from <code>wp_options</code> and deletes the log file from the plugin's <code>logs/</code> directory while leaving imported posts intact.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- XML Structure Section -->
+  <div class="section" id="xml">
+    <h2>XML Structure</h2>
+    <p>The plugin processes a podcast RSS feed. Below is an example snippet of the feed and a description of the key tags used:</p>
+    <pre>
+&lt;item&gt;
+    &lt;title&gt;Cyberattack Roundup: Lessons from the Latest Breaches &amp; Ransomware Strikes&lt;/title&gt;
+    &lt;itunes:episode&gt;35&lt;/itunes:episode&gt;
+    &lt;guid isPermaLink="false"&gt;f7d8af87-4025-4f58-826c-8db147cc91de&lt;/guid&gt;
+    &lt;link&gt;https://example.com/episodes/cyberattack-roundup&lt;/link&gt;
+    &lt;description&gt;
+      <![CDATA[
+        &lt;p&gt;Episode description with key takeaways and details...&lt;/p&gt;
+      ]]&gt;
+    &lt;/description&gt;
+    &lt;content:encoded&gt;
+      <![CDATA[
+        &lt;p&gt;Full episode content including HTML markup...&lt;/p&gt;
+      ]]&gt;
+    &lt;/content:encoded&gt;
+    &lt;pubDate&gt;Tue, 25 Mar 2025 19:22:03 -0700&lt;/pubDate&gt;
+    &lt;enclosure url="https://media.example.com/episode.mp3" length="4664732" type="audio/mpeg"/&gt;
+    &lt;itunes:image href="https://img.example.com/episode.jpg"/&gt;
+    &lt;itunes:keywords&gt;cybersecurity, data breaches, ransomware&lt;/itunes:keywords&gt;
+    &lt;lastBuildDate&gt;Tue, 15 Apr 2025 11:16:25 -0700&lt;/lastBuildDate&gt;
+&lt;/item&gt;
+    </pre>
+    <p><strong>Key Tags Explained:</strong></p>
+    <ul>
+      <li><code>&lt;title&gt;</code>: The episode title (used as the post title in WordPress).</li>
+      <li><code>&lt;guid&gt;</code>: A unique identifier for the episode, used to avoid duplicate imports.</li>
+      <li><code>&lt;link&gt;</code>: The URL of the episode, used as a fallback if no GUID is available.</li>
+      <li><code>&lt;description&gt;</code> and <code>&lt;content:encoded&gt;</code>: The episode description/content, which becomes the post content.</li>
+      <li><code>&lt;pubDate&gt;</code>: Publication date of the episode; used as the post date.</li>
+      <li><code>&lt;enclosure&gt;</code>: Contains the URL to the audio file (embedded via the <code>[audio]</code> shortcode).</li>
+      <li><code>&lt;itunes:image&gt;</code>: Provides the URL for the featured image (<code>href</code> attribute).</li>
+      <li><code>&lt;itunes:keywords&gt;</code>: A comma-separated list of keywords, with the first two used for category mapping.</li>
+      <li><code>&lt;lastBuildDate&gt;</code>: Represents the last modified date of the feed (used as a fallback if no HTTP Last-Modified header is provided).</li>
+    </ul>
+  </div>
+
+  <!-- Detailed Prompt Section -->
+  <div class="section" id="prompt">
+    <h2>Detailed Development Prompt</h2>
+    <p>This plugin was built with the following requirements in mind:</p>
+    <div class="prompt">
+      <pre>
+Create a WordPress plugin named "Ultimate Podcast Importer" with these core functionalities:
+
+1. Feed Import:
+   - Import podcast episodes as WordPress posts by extracting:
+     • Title, description/content, publication date, audio URL, and featured image URL.
+   - Embed audio using the [audio] shortcode.
+   - Download the featured image from the <itunes:image> tag.
+
+2. Category and Author Assignment:
+   - Use the first two keywords from <itunes:keywords> along with a default category selected via a dropdown.
+   - Allow selection of a WordPress author from a dropdown list.
+
+3. Admin UI:
+   - Provide an admin interface with tabs for:
+     • Add Feed – Input feed URL, import date, post status, default category, author, ongoing import, auto-fetch interval, and auto-update option.
+     • Manage Feeds – Display all feeds with statistics and action links (edit, delete).
+     • Logs – View import and update logs.
+     • Help – Documentation on usage and features.
+  
+4. AJAX and Batch Processing:
+   - Process the feed in chunks to avoid timeouts.
+   - Display a progress bar that updates in real time.
+   - Show a summary popup upon completion with a green tick and import statistics.
+
+5. Auto-Update:
+   - Provide an "Auto Update" option to automatically update existing posts if the source feed changes.
+   - Check for updates using the HTTP Last-Modified header or <lastBuildDate>.
+   - Compare key fields and update posts accordingly if changes are detected.
+  
+6. Logging & Uninstallation:
+   - Log all critical events to a log file (tpi.log).
+   - On uninstall, remove plugin options and log file (imported posts remain).
+
+7. Code Organization:
+   - Split code into multiple files for maintainability (assets, includes, templates).
+   - Use clear inline comments and documentation.
+
+Finish with a robust, maintainable, and scalable solution.
+      </pre>
+    </div>
+  </div>
+
+  <!-- Additional Notes Section -->
+  <div class="section" id="notes">
+    <h2>Additional Notes</h2>
+    <ul>
+      <li>The plugin stores all feed settings and statistics in the <code>wp_options</code> table using the key <code>tpi_feeds</code>.</li>
+      <li>Imported posts are created using standard WordPress post functions and stored in <code>wp_posts</code> and <code>wp_postmeta</code>.</li>
+      <li>Feeds are processed via AJAX in small batches to ensure smooth performance even with large data sets.</li>
+      <li>Auto-update functionality leverages HTTP headers or XML’s <code>&lt;lastBuildDate&gt;</code> to minimize unnecessary processing.</li>
+      <li>Logs are maintained in a dedicated <code>logs/tpi.log</code> file for tracking all import and update activities.</li>
+      <li>The uninstall routine ensures that the plugin cleans up all its stored data without removing the imported content.</li>
+    </ul>
+    <p>This documentation aims to provide complete guidance for developers of all levels to understand, maintain, and extend the Ultimate Podcast Importer plugin.</p>
+  </div>
+
+</body>
+</html>

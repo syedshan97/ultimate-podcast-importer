@@ -1,0 +1,32 @@
+/* Basic styling for the admin area */
+.wrap h2 {
+    margin-bottom: 20px;
+}
+
+.nav-tab-wrapper {
+    margin-bottom: 15px;
+}
+
+textarea {
+    font-family: monospace;
+}
+
+/* Progress bar styling */
+#tpi-progress {
+    border: 1px solid #ccc;
+    padding: 5px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+#tpi-progress-bar {
+    width: 0%;
+    height: 20px;
+    background: #0073aa;
+    transition: width 0.5s ease;
+}
+
+#tpi-progress-text {
+    margin-top: 5px;
+    font-weight: bold;
+}
