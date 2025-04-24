@@ -9,9 +9,9 @@
  * @param string $message The message to log.
  */
 function tpi_log( $message ) {
-    $timestamp = current_time( 'mysql' );
-    $log_message = "[$timestamp] $message" . PHP_EOL;
-    file_put_contents( TPI_LOG_FILE, $log_message, FILE_APPEND );
+    $time = current_time( 'mysql', true ); // GMT
+    $line = "[{$time}] {$message}\n";
+    file_put_contents( TPI_LOG_FILE, $line, FILE_APPEND );
     error_log('[TPI] ' . $message);
 }
 
